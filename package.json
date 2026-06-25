@@ -1,0 +1,21 @@
+{
+  "name": "fuelos",
+  "version": "1.0.0",
+  "description": "Personal nutrition tracking app — self-hostable, no auth needed",
+  "main": "server.js",
+  "scripts": {
+    "dev": "concurrently \"nodemon server.js\" \"npm run dev --prefix client\"",
+    "start": "node server.js",
+    "build": "npm run build --prefix client",
+    "install:all": "npm install && npm install --prefix client"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  }
+}
