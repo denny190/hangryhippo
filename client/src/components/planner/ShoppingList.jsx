@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
-import { Copy, X } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { MEAL_TYPES, cellId } from '../../utils/weekUtils.js';
 import { categorizeIngredient, CATEGORIES } from '../../utils/categoryUtils.js';
 import Modal from '../common/Modal.jsx';
 
-function buildList(mealPlan, recipes, pantry) {
+function buildList(mealPlan, recipes) {
   const totals = {};
 
   for (let day = 0; day < 7; day++) {
@@ -23,16 +23,6 @@ function buildList(mealPlan, recipes, pantry) {
     }
   }
 
-  // Deduct pantry
-  for (const p of pantry) {
-    const key = p.name.toLowerCase().trim();
-    if (totals[key]) {
-      totals[key].quantity -= parseFloat(p.quantity) || 0;
-      if (totals[key].quantity <= 0) delete totals[key];
-    }
-  }
-
-  // Group by category
   const grouped = {};
   for (const item of Object.values(totals)) {
     const cat = categorizeIngredient(item.name);
@@ -46,30 +36,28 @@ function toPlainText(grouped) {
   return CATEGORIES
     .filter(cat => grouped[cat]?.length)
     .map(cat => {
-      const lines = grouped[cat].map(i => `  - ${i.name}: ${i.quantity > 0 ? `${i.quantity} ${i.unit}` : i.unit || ''}`).join('\n');
+      const lines = grouped[cat].map(i =>
+        `  - ${i.name}: ${i.quantity > 0 ? `${Math.round(i.quantity * 10) / 10} ${i.unit}` : i.unit || ''}`
+      ).join('\n');
       return `${cat}:\n${lines}`;
     })
     .join('\n\n');
 }
 
-export default function ShoppingList({ onClose, mealPlan, recipes, pantry }) {
-  const grouped = useMemo(() => buildList(mealPlan, recipes, pantry), [mealPlan, recipes, pantry]);
+export default function ShoppingList({ onClose, mealPlan, recipes }) {
+  const grouped = useMemo(() => buildList(mealPlan, recipes), [mealPlan, recipes]);
   const isEmpty = Object.keys(grouped).length === 0;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText('Shopping List\n\n' + toPlainText(grouped));
-  };
 
   return (
     <Modal title="Shopping List" onClose={onClose} size="md">
       <div className="space-y-4">
         {isEmpty ? (
           <p className="text-slate-500 text-sm text-center py-6">
-            No items needed — pantry covers everything or no meals planned.
+            No ingredients needed — no meals planned this week.
           </p>
         ) : (
           <>
-            <button onClick={copyToClipboard} className="btn-ghost w-full justify-center border border-border">
+            <button onClick={() => navigator.clipboard.writeText('Shopping List\n\n' + toPlainText(grouped))} className="btn-ghost w-full justify-center border border-border">
               <Copy size={14} /> Copy as plain text
             </button>
             {CATEGORIES.filter(cat => grouped[cat]?.length).map(cat => (

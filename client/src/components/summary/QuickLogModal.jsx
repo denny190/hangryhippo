@@ -8,7 +8,7 @@ function genId() {
 
 const empty = { name: '', kcal: '', protein: '', carbs: '', fat: '' };
 
-export default function QuickLogModal({ onClose, onAdd }) {
+export default function QuickLogModal({ onClose, onAdd, title = 'Quick Log', submitLabel = 'Add to today' }) {
   const [form, setForm] = useState(empty);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -29,7 +29,7 @@ export default function QuickLogModal({ onClose, onAdd }) {
   };
 
   return (
-    <Modal title="Quick Log" onClose={onClose} size="sm">
+    <Modal title={title} onClose={onClose} size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="label">Meal name</label>
@@ -43,7 +43,7 @@ export default function QuickLogModal({ onClose, onAdd }) {
             </div>
           ))}
         </div>
-        <button type="submit" className="btn-primary w-full justify-center py-2">Add to today</button>
+        <button type="submit" className="btn-primary w-full justify-center py-2">{submitLabel}</button>
       </form>
     </Modal>
   );

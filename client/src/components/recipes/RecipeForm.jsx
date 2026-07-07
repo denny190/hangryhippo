@@ -4,7 +4,7 @@ import Modal from '../common/Modal.jsx';
 import { calcRecipeMacros, scaleFoodMacros } from '../../utils/api.js';
 import { useApp } from '../../context/AppContext.jsx';
 
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_TYPES = ['breakfast', 'lunch/dinner', 'snack', 'beverage'];
 
 function emptyRecipe() {
   return {
@@ -78,16 +78,18 @@ export default function RecipeForm({ initial, onClose, onSave }) {
 
   const [macroOverride, setMacroOverride] = useState(false);
 
-  // Auto-calculate macros whenever ingredients change
+  // Auto-calculate macros per portion (total from ingredients ÷ portions)
   const autoMacros = useMemo(() => {
     const m = calcRecipeMacros(form.ingredients, foods);
+    const p = Math.max(1, parseInt(form.portions) || 1);
     return {
-      kcal:    Math.round(m.kcal),
-      protein: Math.round(m.protein * 10) / 10,
-      carbs:   Math.round(m.carbs   * 10) / 10,
-      fat:     Math.round(m.fat     * 10) / 10,
+      kcal:    Math.round(m.kcal    / p),
+      protein: Math.round(m.protein / p * 10) / 10,
+      carbs:   Math.round(m.carbs   / p * 10) / 10,
+      fat:     Math.round(m.fat     / p * 10) / 10,
+      _total:  { kcal: Math.round(m.kcal), protein: Math.round(m.protein) },
     };
-  }, [form.ingredients, foods]);
+  }, [form.ingredients, form.portions, foods]);
 
   const hasLinkedIngredients = form.ingredients.some(i => i.foodId);
   // Use auto macros unless the user explicitly overrides
@@ -114,12 +116,14 @@ export default function RecipeForm({ initial, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const macros = (hasLinkedIngredients && !macroOverride) ? autoMacros : {
-      kcal:    parseFloat(form.macros.kcal)    || 0,
-      protein: parseFloat(form.macros.protein) || 0,
-      carbs:   parseFloat(form.macros.carbs)   || 0,
-      fat:     parseFloat(form.macros.fat)     || 0,
-    };
+    const macros = (hasLinkedIngredients && !macroOverride)
+      ? { kcal: autoMacros.kcal, protein: autoMacros.protein, carbs: autoMacros.carbs, fat: autoMacros.fat }
+      : {
+        kcal:    parseFloat(form.macros.kcal)    || 0,
+        protein: parseFloat(form.macros.protein) || 0,
+        carbs:   parseFloat(form.macros.carbs)   || 0,
+        fat:     parseFloat(form.macros.fat)     || 0,
+      };
     onSave({ ...form, macros, portions: parseInt(form.portions) || 1 });
     onClose();
   };
@@ -175,7 +179,12 @@ export default function RecipeForm({ initial, onClose, onSave }) {
         {/* Macros */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="label mb-0">Macros per serving</p>
+            <p className="label mb-0">
+            Macros per portion
+            {parseInt(form.portions) > 1 && (
+              <span className="ml-1.5 text-slate-600 font-normal">(of {form.portions})</span>
+            )}
+          </p>
             {hasLinkedIngredients && (
               <button
                 type="button"
@@ -213,9 +222,12 @@ export default function RecipeForm({ initial, onClose, onSave }) {
             ))}
           </div>
           {hasLinkedIngredients && !macroOverride && (
-            <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1">
-              <Zap size={9} className="text-accent" />
-              Calculated from linked ingredients · click to override manually
+            <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1 flex-wrap">
+              <Zap size={9} className="text-accent shrink-0" />
+              {parseInt(form.portions) > 1
+                ? <>Batch total: <span className="text-cals/60">{autoMacros._total.kcal} kcal</span> · <span className="text-protein/60">{autoMacros._total.protein}g P</span> ÷ {form.portions} portions · <span className="text-slate-600">click to override</span></>
+                : <>Calculated from linked ingredients · <span className="text-slate-600">click to override</span></>
+              }
             </p>
           )}
         </div>

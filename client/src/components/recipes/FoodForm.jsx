@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Scan } from 'lucide-react';
 import Modal from '../common/Modal.jsx';
 import BarcodeModal from './BarcodeModal.jsx';
+import { useApp } from '../../context/AppContext.jsx';
 
 const UNITS = ['g', 'ml', 'oz', 'cup', 'tbsp', 'tsp', 'piece', 'slice', 'serving'];
 
@@ -10,6 +11,7 @@ function empty() {
 }
 
 export default function FoodForm({ initial, onClose, onSave }) {
+  const { state: { foods } } = useApp();
   const [form, setForm] = useState(initial ? { ...initial } : empty());
   const [showScanner, setShowScanner] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -24,6 +26,7 @@ export default function FoodForm({ initial, onClose, onSave }) {
       protein: data.protein ?? f.protein,
       carbs:   data.carbs   ?? f.carbs,
       fat:     data.fat     ?? f.fat,
+      ...(data.code ? { code: data.code } : {}),
     }));
   };
 
@@ -125,6 +128,7 @@ export default function FoodForm({ initial, onClose, onSave }) {
         <BarcodeModal
           onFound={handleBarcodeResult}
           onClose={() => setShowScanner(false)}
+          foods={foods}
         />
       )}
     </>

@@ -4,7 +4,8 @@
   "description": "Personal nutrition tracking app — self-hostable, no auth needed",
   "main": "server.js",
   "scripts": {
-    "dev": "concurrently \"nodemon server.js\" \"npm run dev --prefix client\"",
+    "dev": "npm run dev --prefix client",
+    "dev:local": "concurrently \"nodemon server.js\" \"npm run dev --prefix client\"",
     "start": "node server.js",
     "build": "npm run build --prefix client",
     "install:all": "npm install && npm install --prefix client"

@@ -1,60 +1,322 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   DndContext, DragOverlay, pointerWithin,
   PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, LayoutGrid, ShoppingCart, ListFilter, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, ShoppingCart, ListFilter, X, PenLine, Scan, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import {
   DAYS, MEAL_TYPES, MEAL_LABELS,
   getWeekDates, prevWeek, nextWeek,
   cellId, toLocalDateStr, getISOWeek,
 } from '../utils/weekUtils.js';
-import { getMacrosForItems } from '../utils/api.js';
+import { api, getMacrosForItems } from '../utils/api.js';
 import MealCell from '../components/planner/MealCell.jsx';
 import RecipePanel from '../components/planner/RecipePanel.jsx';
 import ShoppingList from '../components/planner/ShoppingList.jsx';
 import Modal from '../components/common/Modal.jsx';
+import QuickLogModal from '../components/summary/QuickLogModal.jsx';
+import BarcodeModal from '../components/recipes/BarcodeModal.jsx';
 
 function genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
-// ── Modals ─────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────
 
-function RecipePickerModal({ mealType, recipes, onSelect, onClose }) {
-  const [search, setSearch] = useState('');
-  const filtered = recipes
-    .filter(r => mealType === 'any' || r.mealType === mealType)
-    .filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
+const SLOT_TAG = {
+  breakfast: 'breakfast',
+  lunch:     'lunch/dinner',
+  dinner:    'lunch/dinner',
+  snack:     'snack',
+};
+
+const MEAL_TAG_COLORS = {
+  breakfast:      'bg-yellow-500/15 text-yellow-300',
+  'lunch/dinner': 'bg-blue-500/15 text-blue-300',
+  snack:          'bg-green-500/15 text-green-300',
+  beverage:       'bg-cyan-500/15 text-cyan-300',
+  lunch:          'bg-blue-500/15 text-blue-300',
+  dinner:         'bg-blue-500/15 text-blue-300',
+};
+
+// ── RecipePickerModal ──────────────────────────────────────────────────────
+
+function RecipePickerModal({ mealType, recipes, onSelect, onAddItem, onClose, onCustom }) {
+  const { state: { foods }, dispatch } = useApp();
+
+  const [activeTab,    setActiveTab]    = useState('recipes');
+  const [search,       setSearch]       = useState('');
+  const [foodSearch,   setFoodSearch]   = useState('');
+  const [selectedFood, setSelectedFood] = useState(null);
+  // selectedFood: { food, qty, isNew } | null
+  const [showScanner,  setShowScanner]  = useState(false);
+  const [savingFood,   setSavingFood]   = useState(false);
+
+  // Recipes tab
+  const suggestedTag = SLOT_TAG[mealType] ?? null;
+  const q = search.toLowerCase();
+  const visible   = recipes.filter(r => !q || r.name.toLowerCase().includes(q));
+  const suggested = !q && suggestedTag ? visible.filter(r => r.mealType === suggestedTag) : [];
+  const others    = !q && suggestedTag ? visible.filter(r => r.mealType !== suggestedTag) : visible;
+
+  // Foods tab
+  const fq           = foodSearch.toLowerCase();
+  const visibleFoods = foods.filter(f => !fq || f.name.toLowerCase().includes(fq));
+
+  // Macro preview for selected food at given qty
+  const scaledMacros = useMemo(() => {
+    if (!selectedFood) return null;
+    const { food, qty } = selectedFood;
+    const scale = (parseFloat(qty) || 0) / (parseFloat(food.per) || 100);
+    return {
+      kcal:    Math.round((food.kcal    || 0) * scale),
+      protein: Math.round((food.protein || 0) * scale * 10) / 10,
+      carbs:   Math.round((food.carbs   || 0) * scale * 10) / 10,
+      fat:     Math.round((food.fat     || 0) * scale * 10) / 10,
+    };
+  }, [selectedFood]);
+
+  const handleAddExistingFood = () => {
+    if (!selectedFood) return;
+    onAddItem({
+      type:     'food',
+      id:       genId(),
+      foodId:   selectedFood.food.id,
+      quantity: parseFloat(selectedFood.qty) || selectedFood.food.per,
+      unit:     selectedFood.food.unit,
+    });
+    onClose();
+  };
+
+  const handleQuickAddNew = () => {
+    if (!selectedFood || !scaledMacros) return;
+    onAddItem({ type: 'quicklog', id: genId(), name: selectedFood.food.name, ...scaledMacros });
+    onClose();
+  };
+
+  const handleSaveAndAdd = async () => {
+    if (!selectedFood) return;
+    setSavingFood(true);
+    try {
+      const saved = await api.createFood(selectedFood.food);
+      dispatch({ type: 'ADD_FOOD', payload: saved });
+      onAddItem({
+        type:     'food',
+        id:       genId(),
+        foodId:   saved.id,
+        quantity: parseFloat(selectedFood.qty) || selectedFood.food.per,
+        unit:     saved.unit,
+      });
+      onClose();
+    } catch {
+      setSavingFood(false);
+    }
+  };
+
+  const RecipeBtn = ({ r }) => (
+    <button
+      onClick={() => { onSelect(r); onClose(); }}
+      className="w-full text-left px-3 py-2.5 rounded-lg border border-border hover:border-accent/40 hover:bg-white/5 transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-slate-200 flex-1 truncate">{r.name}</span>
+        {r.mealType && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${MEAL_TAG_COLORS[r.mealType] ?? 'bg-white/10 text-slate-400'}`}>
+            {r.mealType}
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-slate-500 mt-0.5">{r.macros?.kcal ?? 0} kcal · {r.macros?.protein ?? 0}g P</div>
+    </button>
+  );
 
   return (
     <Modal title={`Add to ${MEAL_LABELS[mealType] || 'Meal'}`} onClose={onClose} size="sm">
       <div className="space-y-3">
-        <input
-          className="input"
-          placeholder="Search recipes…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          autoFocus
-        />
-        <div className="space-y-1.5 max-h-64 overflow-y-auto">
-          {filtered.map(r => (
+        {/* Tab bar */}
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
+          {[['recipes', 'Recipes'], ['foods', 'Foods']].map(([id, label]) => (
             <button
-              key={r.id}
-              onClick={() => { onSelect(r); onClose(); }}
-              className="w-full text-left px-3 py-2.5 rounded-lg border border-border hover:border-accent/40 hover:bg-white/5 transition-colors"
+              key={id}
+              onClick={() => { setActiveTab(id); setSelectedFood(null); }}
+              className={`flex-1 py-1.5 text-sm rounded-lg transition-colors
+                ${activeTab === id ? 'bg-accent text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              <div className="text-sm font-medium text-slate-200">{r.name}</div>
-              <div className="text-xs text-slate-500">{r.macros?.kcal ?? 0} kcal · {r.macros?.protein ?? 0}g P</div>
+              {label}
             </button>
           ))}
-          {filtered.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-4">No recipes found</p>
-          )}
         </div>
+
+        {/* ── Recipes tab ── */}
+        {activeTab === 'recipes' && (
+          <>
+            <input
+              className="input"
+              placeholder="Search recipes…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+              {suggested.length > 0 && (
+                <>
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-0.5">Suggested</p>
+                  {suggested.map(r => <RecipeBtn key={r.id} r={r} />)}
+                  {others.length > 0 && (
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-0.5 pt-1">All recipes</p>
+                  )}
+                </>
+              )}
+              {others.map(r => <RecipeBtn key={r.id} r={r} />)}
+              {visible.length === 0 && <p className="text-sm text-slate-500 text-center py-4">No recipes found</p>}
+            </div>
+            <div className="pt-3 border-t border-border/40">
+              <button
+                onClick={onCustom}
+                className="w-full btn-ghost justify-center gap-2 text-slate-400 hover:text-slate-200 text-sm"
+              >
+                <PenLine size={13} /> Add custom macros
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Foods tab ── */}
+        {activeTab === 'foods' && (
+          <>
+            {selectedFood ? (
+              /* Quantity confirmation panel */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-slate-200 truncate flex-1 mr-2">{selectedFood.food.name}</p>
+                  <button onClick={() => setSelectedFood(null)} className="text-xs text-slate-500 hover:text-slate-300 shrink-0">
+                    ← Back
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500">per {selectedFood.food.per}{selectedFood.food.unit} · adjust quantity</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    className="input w-28 tabular-nums"
+                    value={selectedFood.qty}
+                    onChange={e => setSelectedFood(sf => ({ ...sf, qty: e.target.value }))}
+                    autoFocus
+                  />
+                  <span className="text-sm text-slate-400">{selectedFood.food.unit}</span>
+                </div>
+                {scaledMacros && (
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    {[['kcal', scaledMacros.kcal, 'text-cals'], ['P', scaledMacros.protein, 'text-protein'], ['C', scaledMacros.carbs, 'text-carbs'], ['F', scaledMacros.fat, 'text-fat']].map(([label, val, color]) => (
+                      <div key={label} className="bg-white/3 rounded-lg py-1.5">
+                        <div className={`text-sm font-semibold ${color} tabular-nums`}>{val}</div>
+                        <div className="text-[10px] text-slate-500">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedFood.isNew ? (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={handleSaveAndAdd}
+                      disabled={savingFood}
+                      className="btn-primary w-full justify-center"
+                    >
+                      {savingFood ? 'Saving…' : 'Save to Foods & add'}
+                    </button>
+                    <button onClick={handleQuickAddNew} className="btn-ghost w-full justify-center text-sm text-slate-400">
+                      Quick add (one-time)
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleAddExistingFood} className="btn-primary w-full justify-center">
+                    Add to slot
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Foods list */
+              <>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      className="input pl-8 text-sm"
+                      placeholder="Search foods…"
+                      value={foodSearch}
+                      onChange={e => setFoodSearch(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    className="btn-ghost border border-border shrink-0"
+                    onClick={() => setShowScanner(true)}
+                    title="Scan barcode"
+                  >
+                    <Scan size={14} />
+                  </button>
+                </div>
+
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {visibleFoods.length === 0 ? (
+                    <p className="text-sm text-slate-500 text-center py-6">
+                      {foods.length === 0
+                        ? 'No foods yet — add some in the Foods tab first'
+                        : 'No results'}
+                    </p>
+                  ) : (
+                    visibleFoods.map(food => (
+                      <button
+                        key={food.id}
+                        onClick={() => setSelectedFood({ food, qty: String(food.per), isNew: false })}
+                        className="w-full text-left px-3 py-2 rounded-lg border border-border hover:border-accent/40 hover:bg-white/5 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-200 flex-1 truncate">{food.name}</span>
+                          <span className="text-xs text-slate-500 shrink-0">per {food.per}{food.unit}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          <span className="text-cals/70">{food.kcal} kcal</span>
+                          <span className="mx-1 text-slate-600">·</span>
+                          <span className="text-protein/70">{food.protein}g P</span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-border/40">
+                  <button
+                    onClick={onCustom}
+                    className="w-full btn-ghost justify-center gap-2 text-slate-400 hover:text-slate-200 text-sm"
+                  >
+                    <PenLine size={13} /> Add custom macros
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
+
+      {showScanner && (
+        <BarcodeModal
+          foods={foods}
+          onFound={(data) => {
+            setShowScanner(false);
+            setSelectedFood({ food: data, qty: String(data.per || 100), isNew: true });
+          }}
+          onFoundExisting={(food) => {
+            setShowScanner(false);
+            setSelectedFood({ food, qty: String(food.per), isNew: false });
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </Modal>
   );
 }
+
+// ── BatchFillModal ─────────────────────────────────────────────────────────
 
 function BatchFillModal({ recipe, dayIndex, mealType, onConfirm, onClose }) {
   const maxFill = Math.min(7 - dayIndex - 1, (recipe.portions || 1) - 1);
@@ -68,12 +330,7 @@ function BatchFillModal({ recipe, dayIndex, mealType, onConfirm, onClose }) {
       </p>
       <div className="flex items-center gap-3 mb-5">
         <label className="label mb-0 shrink-0">Fill next</label>
-        <input
-          className="input w-20"
-          type="number" min="0" max={maxFill}
-          value={count}
-          onChange={e => setCount(Number(e.target.value))}
-        />
+        <input className="input w-20" type="number" min="0" max={maxFill} value={count} onChange={e => setCount(Number(e.target.value))} />
         <span className="text-sm text-slate-400">day(s)</span>
       </div>
       <div className="flex gap-3">
@@ -84,59 +341,36 @@ function BatchFillModal({ recipe, dayIndex, mealType, onConfirm, onClose }) {
   );
 }
 
-function CookedModal({ recipe, onConfirm, onClose }) {
-  return (
-    <Modal title="Mark as cooked" onClose={onClose} size="sm">
-      <p className="text-sm text-slate-400 mb-5">
-        Deduct <span className="text-slate-200 font-medium">{recipe?.name}</span> ingredients from pantry?
-      </p>
-      <div className="flex gap-3">
-        <button className="btn-ghost flex-1 justify-center" onClick={onClose}>Skip</button>
-        <button className="btn-primary flex-1 justify-center" onClick={() => { onConfirm(); onClose(); }}>Deduct pantry</button>
-      </div>
-    </Modal>
-  );
-}
-
 // ── Main view ──────────────────────────────────────────────────────────────
 
 export default function PlannerView() {
-  const { state, dispatch, updateCell, saveMealPlan, deductIngredients } = useApp();
-  const { recipes, pantry, mealPlan, currentWeek } = state;
+  const { state, dispatch, updateCell, saveMealPlan } = useApp();
+  const { recipes, foods, mealPlan, currentWeek } = state;
 
-  const [panelOpen,    setPanelOpen]    = useState(false);
-  const [showShopping, setShowShopping] = useState(false);
-  const [pickerCell,   setPickerCell]   = useState(null);   // { cId, mealType }
-  const [batchModal,   setBatchModal]   = useState(null);
-  const [cookedModal,  setCookedModal]  = useState(null);
-  const [activeRecipe, setActiveRecipe] = useState(null);
-  // Two-tap mobile flow: recipe selected in panel, awaiting cell tap
+  const [panelOpen,     setPanelOpen]     = useState(false);
+  const [showShopping,  setShowShopping]  = useState(false);
+  const [pickerCell,    setPickerCell]    = useState(null);
+  const [quickCell,     setQuickCell]     = useState(null);
+  const [batchModal,    setBatchModal]    = useState(null);
+  const [activeRecipe,  setActiveRecipe]  = useState(null);
   const [pendingRecipe, setPendingRecipe] = useState(null);
 
   const weekDates = getWeekDates(currentWeek);
   const todayStr  = toLocalDateStr(new Date());
   const todayWeek = getISOWeek();
 
-  // ── Sensors ─────────────────────────────────────────────────────────────
-  // PointerSensor handles mouse + touch + stylus uniformly.
-  // distance:8 means the pointer must move 8px before a drag starts,
-  // which lets short taps and vertical scroll pass through naturally.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // ── Week navigation ──────────────────────────────────────────────────────
   const goWeekNav = (dir) => {
     const w = dir < 0 ? prevWeek(currentWeek) : nextWeek(currentWeek);
     dispatch({ type: 'SET_WEEK', payload: w });
   };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
   const addRecipeToCell = useCallback((cId, recipe, basePlan = null) => {
-    const plan   = basePlan ?? mealPlan;
-    const newItem  = { type: 'recipe', id: genId(), recipeId: recipe.id };
+    const plan    = basePlan ?? mealPlan;
+    const newItem = { type: 'recipe', id: genId(), recipeId: recipe.id };
     const newItems = [...(plan[cId] || []), newItem];
     const newPlan  = { ...plan, [cId]: newItems };
 
@@ -151,11 +385,10 @@ export default function PlannerView() {
     }
   }, [mealPlan, updateCell, saveMealPlan]);
 
-  // ── DnD handlers ─────────────────────────────────────────────────────────
+  // DnD
   const handleDragStart = ({ active }) => {
     const recipe = recipes.find(r => r.id === active.data.current?.recipeId);
     setActiveRecipe(recipe ?? null);
-    // Cancel any pending tap-select when the user starts dragging
     setPendingRecipe(null);
   };
 
@@ -163,13 +396,10 @@ export default function PlannerView() {
     setActiveRecipe(null);
     if (!over || !active.data.current?.recipeId) return;
     const recipe = recipes.find(r => r.id === active.data.current.recipeId);
-    if (!recipe) return;
-    addRecipeToCell(over.id, recipe);
+    if (recipe) addRecipeToCell(over.id, recipe);
   }, [recipes, addRecipeToCell]);
 
-  const handleDragCancel = () => setActiveRecipe(null);
-
-  // ── Batch fill ───────────────────────────────────────────────────────────
+  // Batch fill
   const handleBatchFill = (count) => {
     if (!batchModal) return;
     const { recipe, dayIndex, mealType, basePlan } = batchModal;
@@ -184,14 +414,12 @@ export default function PlannerView() {
     setBatchModal(null);
   };
 
-  // ── Mobile two-tap flow ──────────────────────────────────────────────────
-  // Called when user taps a recipe in the mobile panel drawer
+  // Two-tap mobile flow
   const handleTapRecipe = (recipe) => {
     setPanelOpen(false);
     setPendingRecipe(recipe);
   };
 
-  // Called when a cell is tapped (either to open picker or to place pendingRecipe)
   const handleCellTap = (cId, mealType) => {
     if (pendingRecipe) {
       addRecipeToCell(cId, pendingRecipe);
@@ -201,33 +429,9 @@ export default function PlannerView() {
     }
   };
 
-  // Picker modal select
-  const handlePickerSelect = (recipe) => {
-    if (!pickerCell) return;
-    addRecipeToCell(pickerCell.cId, recipe);
-    setPickerCell(null);
-  };
-
-  // Remove item
-  const handleRemoveItem = (cId, item) => {
-    updateCell(cId, (mealPlan[cId] || []).filter(i => i.id !== item.id));
-  };
-
-  // Mark cooked
-  const handleMarkCooked = (cId, item) => {
-    if (item.type !== 'recipe') return;
-    const recipe = recipes.find(r => r.id === item.recipeId);
-    setCookedModal({ recipe, cellId: cId });
-  };
-
-  const confirmCooked = () => {
-    if (cookedModal?.recipe?.ingredients) deductIngredients(cookedModal.recipe.ingredients);
-  };
-
-  // Day kcal
   const getDayTotal = (dayIdx) =>
     MEAL_TYPES.reduce((acc, meal) =>
-      acc + getMacrosForItems(mealPlan[cellId(dayIdx, meal)] || [], recipes).kcal, 0);
+      acc + getMacrosForItems(mealPlan[cellId(dayIdx, meal)] || [], recipes, foods).kcal, 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -261,22 +465,19 @@ export default function PlannerView() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Recipe panel */}
         <RecipePanel
           recipes={recipes}
-          pantry={pantry}
           isOpen={panelOpen}
           onClose={() => setPanelOpen(false)}
           onTapRecipe={handleTapRecipe}
         />
 
-        {/* Week grid */}
         <DndContext
           sensors={sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
+          onDragCancel={() => setActiveRecipe(null)}
         >
           <div className="flex-1 overflow-x-auto overflow-y-auto p-3 lg:p-4">
             <div className="min-w-[640px]">
@@ -284,14 +485,10 @@ export default function PlannerView() {
               <div className="grid grid-cols-7 gap-1.5 mb-2">
                 {DAYS.map((day, i) => {
                   const date    = weekDates[i];
-                  const dateStr = toLocalDateStr(date);
-                  const isToday = dateStr === todayStr;
+                  const isToday = toLocalDateStr(date) === todayStr;
                   const dayKcal = getDayTotal(i);
                   return (
-                    <div
-                      key={day}
-                      className={`text-center px-1 py-1.5 rounded-lg ${isToday ? 'bg-accent/10 border border-accent/20' : ''}`}
-                    >
+                    <div key={day} className={`text-center px-1 py-1.5 rounded-lg ${isToday ? 'bg-accent/10 border border-accent/20' : ''}`}>
                       <div className={`text-xs font-semibold ${isToday ? 'text-accent' : 'text-slate-400'}`}>{day}</div>
                       <div className={`text-[10px] ${isToday ? 'text-accent/60' : 'text-slate-600'}`}>
                         {date.getUTCDate()}/{date.getUTCMonth() + 1}
@@ -320,11 +517,10 @@ export default function PlannerView() {
                           cellId={cId}
                           items={items}
                           recipes={recipes}
-                          pantry={pantry}
+                          foods={foods}
                           isPendingTarget={!!pendingRecipe}
                           onTap={() => handleCellTap(cId, meal)}
-                          onRemoveItem={(item) => handleRemoveItem(cId, item)}
-                          onMarkCooked={(item) => handleMarkCooked(cId, item)}
+                          onRemoveItem={(item) => updateCell(cId, items.filter(i => i.id !== item.id))}
                         />
                       );
                     })}
@@ -344,28 +540,34 @@ export default function PlannerView() {
         </DndContext>
       </div>
 
-      {/* Pending recipe banner (mobile two-tap flow) */}
+      {/* Pending recipe banner */}
       {pendingRecipe && (
-        <div className="fixed bottom-16 lg:bottom-4 inset-x-3 z-50 flex items-center gap-3 bg-accent shadow-2xl rounded-xl px-4 py-3 pointer-events-auto">
+        <div className="fixed bottom-16 lg:bottom-4 inset-x-3 z-50 flex items-center gap-3 bg-accent shadow-2xl rounded-xl px-4 py-3">
           <span className="flex-1 text-sm text-white font-medium truncate">
             Tap a slot → "{pendingRecipe.name}"
           </span>
-          <button
-            onClick={() => setPendingRecipe(null)}
-            className="text-white/70 hover:text-white shrink-0"
-          >
+          <button onClick={() => setPendingRecipe(null)} className="text-white/70 hover:text-white shrink-0">
             <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Modals */}
       {pickerCell && (
         <RecipePickerModal
           mealType={pickerCell.mealType}
           recipes={recipes}
-          onSelect={handlePickerSelect}
+          onSelect={(recipe) => { addRecipeToCell(pickerCell.cId, recipe); setPickerCell(null); }}
+          onAddItem={(item) => { updateCell(pickerCell.cId, [...(mealPlan[pickerCell.cId] || []), item]); setPickerCell(null); }}
+          onCustom={() => { setQuickCell(pickerCell); setPickerCell(null); }}
           onClose={() => setPickerCell(null)}
+        />
+      )}
+      {quickCell && (
+        <QuickLogModal
+          title="Custom Entry"
+          submitLabel="Add to slot"
+          onAdd={(item) => { updateCell(quickCell.cId, [...(mealPlan[quickCell.cId] || []), item]); setQuickCell(null); }}
+          onClose={() => setQuickCell(null)}
         />
       )}
       {batchModal && (
@@ -377,19 +579,11 @@ export default function PlannerView() {
           onClose={() => setBatchModal(null)}
         />
       )}
-      {cookedModal && (
-        <CookedModal
-          recipe={cookedModal.recipe}
-          onConfirm={confirmCooked}
-          onClose={() => setCookedModal(null)}
-        />
-      )}
       {showShopping && (
         <ShoppingList
           onClose={() => setShowShopping(false)}
           mealPlan={mealPlan}
           recipes={recipes}
-          pantry={pantry}
         />
       )}
     </div>

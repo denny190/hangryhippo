@@ -46,8 +46,13 @@ export function toLocalDateStr(utcDate) {
 }
 
 export function getTodayDayIndex() {
-  const day = new Date().getDay(); // 0=Sun ... 6=Sat
-  return day === 0 ? 6 : day - 1; // convert to Mon=0 ... Sun=6
+  const day = new Date().getDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+export function getDayIndex(date) {
+  const day = date.getDay();
+  return day === 0 ? 6 : day - 1;
 }
 
 export function cellId(dayIndex, mealType) {

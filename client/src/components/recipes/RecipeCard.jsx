@@ -1,22 +1,19 @@
-import React, { useState } from 'react';
-import { Edit2, Trash2, Layers, ChevronDown, ChevronUp } from 'lucide-react';
-import { getPantryMatch, getMissingIngredients } from '../../utils/api.js';
+import React from 'react';
+import { Edit2, Trash2, Layers } from 'lucide-react';
 
 const MEAL_COLORS = {
-  breakfast: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/20',
-  lunch:     'bg-blue-500/15 text-blue-300 border-blue-500/20',
-  dinner:    'bg-purple-500/15 text-purple-300 border-purple-500/20',
-  snack:     'bg-green-500/15 text-green-300 border-green-500/20',
+  breakfast:      'bg-yellow-500/15 text-yellow-300 border-yellow-500/20',
+  'lunch/dinner': 'bg-blue-500/15 text-blue-300 border-blue-500/20',
+  snack:          'bg-green-500/15 text-green-300 border-green-500/20',
+  beverage:       'bg-cyan-500/15 text-cyan-300 border-cyan-500/20',
+  // backward compat for old saved recipes
+  lunch:          'bg-blue-500/15 text-blue-300 border-blue-500/20',
+  dinner:         'bg-blue-500/15 text-blue-300 border-blue-500/20',
 };
 
-export default function RecipeCard({ recipe, pantry, onEdit, onDelete }) {
-  const [expanded, setExpanded] = useState(false);
-  const match = getPantryMatch(recipe, pantry);
-  const missing = getMissingIngredients(recipe, pantry);
-
+export default function RecipeCard({ recipe, onEdit, onDelete }) {
   return (
     <div className="card p-4 flex flex-col gap-3">
-      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-100 truncate">{recipe.name}</h3>
@@ -37,7 +34,6 @@ export default function RecipeCard({ recipe, pantry, onEdit, onDelete }) {
         </div>
       </div>
 
-      {/* Macros */}
       <div className="grid grid-cols-4 gap-1 text-center">
         {[
           { label: 'kcal',    value: recipe.macros?.kcal,    color: 'text-cals' },
@@ -51,41 +47,14 @@ export default function RecipeCard({ recipe, pantry, onEdit, onDelete }) {
           </div>
         ))}
       </div>
+      {recipe.portions > 1 && (
+        <p className="text-[10px] text-slate-600 text-center -mt-1">
+          per portion · {Math.round((recipe.macros?.kcal ?? 0) * recipe.portions)} kcal total batch
+        </p>
+      )}
 
-      {/* Pantry match */}
-      {recipe.ingredients?.length > 0 && (
-        <div>
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className="flex items-center justify-between w-full text-xs"
-          >
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${match === 100 ? 'bg-protein' : match >= 60 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                  style={{ width: `${match}%` }}
-                />
-              </div>
-              {match === 100
-                ? <span className="text-protein font-medium">In pantry ✓</span>
-                : <span className="text-slate-400">{match}% in pantry</span>
-              }
-            </div>
-            {missing.length > 0 && (expanded
-              ? <ChevronUp size={12} className="text-slate-500" />
-              : <ChevronDown size={12} className="text-slate-500" />
-            )}
-          </button>
-          {expanded && missing.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {missing.map((ing, i) => (
-                <span key={i} className="badge bg-red-500/10 text-red-400 border border-red-500/20">
-                  {ing.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+      {recipe.prepNotes && (
+        <p className="text-xs text-slate-500 leading-relaxed">{recipe.prepNotes}</p>
       )}
     </div>
   );

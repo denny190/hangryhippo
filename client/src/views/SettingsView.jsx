@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, Save } from 'lucide-react';
+import { Download, Upload, Save, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import { api } from '../utils/api.js';
+import { supabase } from '../lib/supabase.js';
 
 export default function SettingsView() {
   const { state, dispatch } = useApp();
@@ -32,11 +33,11 @@ export default function SettingsView() {
       const data = JSON.parse(text);
       await api.importDb(data);
       // Reload state
-      const [recipes, pantry, settings] = await Promise.all([
-        api.getRecipes(), api.getPantry(), api.getSettings(),
+      const [recipes, foods, settings] = await Promise.all([
+        api.getRecipes(), api.getFoods(), api.getSettings(),
       ]);
-      dispatch({ type: 'SET_RECIPES', payload: recipes });
-      dispatch({ type: 'SET_PANTRY', payload: pantry });
+      dispatch({ type: 'SET_RECIPES',  payload: recipes });
+      dispatch({ type: 'SET_FOODS',    payload: foods });
       dispatch({ type: 'SET_SETTINGS', payload: settings });
       setTargets({ ...settings.targets });
       alert('Import successful!');
@@ -86,7 +87,7 @@ export default function SettingsView() {
         <h2 className="text-sm font-semibold text-slate-200">Data</h2>
 
         <div>
-          <p className="text-xs text-slate-400 mb-2">Export a full backup of all your recipes, pantry, meal plans and notes.</p>
+          <p className="text-xs text-slate-400 mb-2">Export a full backup of all your recipes, foods, meal plans and notes.</p>
           <button className="btn-ghost w-full justify-center border border-border" onClick={api.exportDb}>
             <Download size={14} /> Export backup (JSON)
           </button>
@@ -106,11 +107,22 @@ export default function SettingsView() {
         </div>
       </div>
 
+      {/* Account */}
+      <div className="card p-5 space-y-3">
+        <h2 className="text-sm font-semibold text-slate-200">Account</h2>
+        <p className="text-xs text-slate-500">{state.user?.email}</p>
+        <button
+          className="btn-ghost w-full justify-center border border-border text-red-400/70 hover:text-red-400 hover:border-red-400/30"
+          onClick={() => supabase.auth.signOut()}
+        >
+          <LogOut size={14} /> Sign out
+        </button>
+      </div>
+
       {/* App info */}
       <div className="card p-5 text-center space-y-1">
         <p className="text-sm font-bold text-accent tracking-wide">FuelOS</p>
-        <p className="text-xs text-slate-500">Personal nutrition tracker · self-hosted · no auth</p>
-        <p className="text-xs text-slate-600">Data stored locally in db.json</p>
+        <p className="text-xs text-slate-500">Personal nutrition tracker · powered by Supabase</p>
       </div>
     </div>
   );

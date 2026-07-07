@@ -6,12 +6,12 @@ import RecipeCard from '../components/recipes/RecipeCard.jsx';
 import RecipeForm from '../components/recipes/RecipeForm.jsx';
 import FoodsList from '../components/recipes/FoodsList.jsx';
 
-const MEAL_TYPES = ['all', 'breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_TYPES = ['all', 'breakfast', 'lunch/dinner', 'snack', 'beverage'];
 const TABS = ['Recipes', 'Foods'];
 
 export default function RecipesView() {
   const { state, dispatch } = useApp();
-  const { recipes, pantry } = state;
+  const { recipes } = state;
 
   const [activeTab, setActiveTab] = useState('Recipes');
   const [search, setSearch] = useState('');
@@ -97,7 +97,7 @@ export default function RecipesView() {
                   onClick={() => setMealFilter(t)}
                   className={`text-xs px-2.5 py-1 rounded-full transition-colors ${mealFilter === t ? 'bg-accent text-white' : 'bg-white/5 text-slate-400 hover:text-slate-200'}`}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
               ))}
             </div>
@@ -126,7 +126,6 @@ export default function RecipesView() {
                   <RecipeCard
                     key={recipe.id}
                     recipe={recipe}
-                    pantry={pantry}
                     onEdit={() => setEditRecipe(recipe)}
                     onDelete={() => handleDelete(recipe.id)}
                   />

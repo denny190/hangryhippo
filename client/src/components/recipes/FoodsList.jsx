@@ -33,8 +33,8 @@ export default function FoodsList() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-4 pt-2 pb-3 flex items-center gap-2">
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className="px-4 pt-2 pb-3 flex items-center gap-2 shrink-0">
         <div className="relative flex-1">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input className="input pl-8 text-sm" placeholder="Search foods…" value={search} onChange={e => setSearch(e.target.value)} />
@@ -47,7 +47,7 @@ export default function FoodsList() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-8">
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-slate-500">
             <Salad size={36} className="mx-auto mb-3 opacity-30" />
@@ -95,6 +95,7 @@ export default function FoodsList() {
         <BarcodeModal
           onFound={(data) => { setPrefill(data); setScannerOpen(false); setFormOpen(true); }}
           onClose={() => setScannerOpen(false)}
+          foods={foods}
         />
       )}
     </div>

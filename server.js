@@ -13,7 +13,6 @@ app.use(express.json({ limit: '10mb' }));
 
 const defaultDb = {
   recipes: [],
-  pantry: [],
   foods: [],
   mealPlans: {},
   notes: {},
@@ -92,33 +91,6 @@ app.delete('/api/foods/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// ── Pantry ─────────────────────────────────────────────────────────────────
-app.get('/api/pantry', (req, res) => res.json(readDb().pantry));
-
-app.post('/api/pantry', (req, res) => {
-  const db = readDb();
-  const item = { ...req.body, id: uuidv4() };
-  db.pantry.push(item);
-  writeDb(db);
-  res.status(201).json(item);
-});
-
-app.put('/api/pantry/:id', (req, res) => {
-  const db = readDb();
-  const idx = db.pantry.findIndex(i => i.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  db.pantry[idx] = { ...req.body, id: req.params.id };
-  writeDb(db);
-  res.json(db.pantry[idx]);
-});
-
-app.delete('/api/pantry/:id', (req, res) => {
-  const db = readDb();
-  db.pantry = db.pantry.filter(i => i.id !== req.params.id);
-  writeDb(db);
-  res.json({ ok: true });
-});
-
 // ── Meal Plans ─────────────────────────────────────────────────────────────
 app.get('/api/mealplan/:week', (req, res) => {
   const db = readDb();
@@ -181,6 +153,42 @@ app.get('/api/barcode/:code', async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: 'Lookup failed — check your internet connection.' });
+  }
+});
+
+// ── Food name search (proxied to Open Food Facts) ─────────────────────────
+app.get('/api/search/food', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&json=1&page_size=12&fields=product_name,product_name_en,brands,nutriments`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'FuelOS/1.0 (self-hosted nutrition tracker)' } });
+    const data = await r.json();
+    const results = (data.products || [])
+      .filter(p => {
+        const name = p.product_name_en || p.product_name;
+        const n = p.nutriments || {};
+        return name && (n['energy-kcal_100g'] != null || n['energy_100g'] != null);
+      })
+      .slice(0, 8)
+      .map(p => {
+        const name  = (p.product_name_en || p.product_name || '').trim();
+        const brand = p.brands ? p.brands.split(',')[0].trim() : '';
+        const n = p.nutriments || {};
+        const kcal = n['energy-kcal_100g'] ?? Math.round((n['energy_100g'] || 0) / 4.184);
+        return {
+          name:    brand ? `${name} (${brand})` : name,
+          per:     100,
+          unit:    'g',
+          kcal:    Math.round(kcal || 0),
+          protein: Math.round((n['proteins_100g']      || 0) * 10) / 10,
+          carbs:   Math.round((n['carbohydrates_100g'] || 0) * 10) / 10,
+          fat:     Math.round((n['fat_100g']           || 0) * 10) / 10,
+        };
+      });
+    res.json(results);
+  } catch {
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 

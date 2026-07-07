@@ -1,11 +1,10 @@
 import React from 'react';
-import { CalendarDays, BookOpen, Package, BarChart2, Settings } from 'lucide-react';
+import { CalendarDays, BookOpen, BarChart2, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 
 const TABS = [
   { id: 'planner',  label: 'Planner',  Icon: CalendarDays },
   { id: 'recipes',  label: 'Recipes',  Icon: BookOpen },
-  { id: 'pantry',   label: 'Pantry',   Icon: Package },
   { id: 'summary',  label: 'Summary',  Icon: BarChart2 },
   { id: 'settings', label: 'Settings', Icon: Settings },
 ];
