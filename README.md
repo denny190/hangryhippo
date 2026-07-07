@@ -1,4 +1,4 @@
-# FuelOS
+# HangryHippo
 
 A personal nutrition tracker — mobile-first, dark-themed, self-hostable. Track meals, scan barcodes, plan your week, and review daily summaries with trend analytics.
 
@@ -100,7 +100,7 @@ Same principle — install, build, then `npm start`. Set `PORT` to whatever the 
 
 ```bash
 npm install -g pm2
-pm2 start server.js --name fuelos
+pm2 start server.js --name hangryhippo
 pm2 save
 pm2 startup
 ```
@@ -232,11 +232,11 @@ jobs:
 
 Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as repository secrets (Settings → Secrets → Actions).
 
-If the repo is at `github.com/you/fuelos`, set `base: '/fuelos/'` in `client/vite.config.js`. For a custom domain or user Pages (`you.github.io`), use `base: '/'`.
+If the repo is at `github.com/you/hangryhippo`, set `base: '/hangryhippo/'` in `client/vite.config.js`. For a custom domain or user Pages (`you.github.io`), use `base: '/'`.
 
 ### 4. Migrate existing data
 
-Use the **Export** button in Settings to download `fuelos-backup.json`, then use **Import** to load it into the new Supabase-backed deployment. The import route upserts all rows into Supabase tables rather than writing to `db.json`.
+Use the **Export** button in Settings to download `hangryhippo-backup.json`, then use **Import** to load it into the new Supabase-backed deployment. The import route upserts all rows into Supabase tables rather than writing to `db.json`.
 
 ---
 
@@ -244,7 +244,7 @@ Use the **Export** button in Settings to download `fuelos-backup.json`, then use
 
 ### Local / self-hosted
 
-Everything lives in `db.json` at the project root. Back it up any time with the **Export** button in Settings (downloads a `fuelos-backup.json`), or by copying the file directly. To restore, use **Import** in Settings.
+Everything lives in `db.json` at the project root. Back it up any time with the **Export** button in Settings (downloads a `hangryhippo-backup.json`), or by copying the file directly. To restore, use **Import** in Settings.
 
 ### Supabase
 

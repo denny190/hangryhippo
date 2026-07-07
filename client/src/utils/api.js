@@ -105,7 +105,7 @@ export const api = {
   lookupBarcode: async (code) => {
     const r = await fetch(
       `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(code)}.json`,
-      { headers: { 'User-Agent': 'FuelOS/1.0' } }
+      { headers: { 'User-Agent': 'HangryHippo/1.0' } }
     );
     const json = await r.json();
     if (json.status !== 1 || !json.product) throw new Error('Product not found');
@@ -115,7 +115,7 @@ export const api = {
   // Food name search — calls Open Food Facts directly from the browser
   searchFood: async (q) => {
     const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&json=1&page_size=12&fields=product_name,product_name_en,brands,nutriments`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'FuelOS/1.0' } });
+    const r = await fetch(url, { headers: { 'User-Agent': 'HangryHippo/1.0' } });
     const data = await r.json();
     return (data.products || [])
       .filter(p => {
@@ -150,7 +150,7 @@ export const api = {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = 'fuelos-backup.json'; a.click();
+    a.href = url; a.download = 'hangryhippo-backup.json'; a.click();
     URL.revokeObjectURL(url);
   },
 

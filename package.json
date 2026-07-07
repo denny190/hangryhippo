@@ -1,7 +1,7 @@
 {
-  "name": "fuelos",
+  "name": "hangryhippo",
   "version": "1.0.0",
-  "description": "Personal nutrition tracking app — self-hostable, no auth needed",
+  "description": "HangryHippo — personal nutrition tracker",
   "main": "server.js",
   "scripts": {
     "dev": "npm run dev --prefix client",

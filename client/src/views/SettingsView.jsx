@@ -42,7 +42,7 @@ export default function SettingsView() {
       setTargets({ ...settings.targets });
       alert('Import successful!');
     } catch (err) {
-      setImportError('Invalid backup file. Please select a valid fuelos-backup.json.');
+      setImportError('Invalid backup file. Please select a valid hangryhippo-backup.json.');
     } finally {
       setImporting(false);
       e.target.value = '';
@@ -121,7 +121,7 @@ export default function SettingsView() {
 
       {/* App info */}
       <div className="card p-5 text-center space-y-1">
-        <p className="text-sm font-bold text-accent tracking-wide">FuelOS</p>
+        <p className="text-sm font-bold text-accent tracking-wide">HangryHippo</p>
         <p className="text-xs text-slate-500">Personal nutrition tracker · powered by Supabase</p>
       </div>
     </div>

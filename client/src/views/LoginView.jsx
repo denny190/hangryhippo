@@ -37,7 +37,7 @@ export default function LoginView() {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
         <div className="text-center space-y-1">
-          <div className="text-3xl font-bold text-accent tracking-widest">FUELOS</div>
+          <div className="text-3xl font-bold text-accent tracking-widest">HangryHippo</div>
           <p className="text-sm text-slate-500">Personal nutrition tracker</p>
         </div>
 

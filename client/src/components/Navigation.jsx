@@ -33,7 +33,7 @@ export default function Navigation() {
       {/* Desktop sidebar icons */}
       <div className="hidden lg:flex flex-col items-center py-4 gap-1">
         <div className="text-accent font-bold text-xs tracking-widest mb-4 [writing-mode:vertical-lr] rotate-180 select-none">
-          FUELOS
+          HangryHippo
         </div>
         {TABS.map(({ id, label, Icon }) => (
           <button
