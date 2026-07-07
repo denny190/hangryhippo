@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import PrivacyModal from '../components/common/PrivacyModal.jsx';
 
 export default function LoginView() {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
-  const [message,  setMessage]  = useState('');
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [isSignUp,    setIsSignUp]    = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState('');
+  const [message,     setMessage]     = useState('');
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +25,6 @@ export default function LoginView() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // AppContext auth listener handles state update + data load
       }
     } catch (err) {
       setError(err.message);
@@ -103,7 +104,26 @@ export default function LoginView() {
             </button>
           </div>
         </div>
+
+        {/* Footer */}
+        <div className="text-center text-xs text-slate-600 space-y-1">
+          <p>
+            {isSignUp ? 'By creating an account' : 'By signing in'} you agree to our{' '}
+            {isSignUp ? (
+              <button className="text-slate-500 hover:text-slate-300 underline underline-offset-2" onClick={() => setShowPrivacy(true)}>
+                Privacy Policy
+              </button>
+            ) : (
+              <a href="https://github.com/denny190/hangryhippo/blob/main/PRIVACY.md" className="text-slate-500 hover:text-slate-300 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </a>
+            )}
+          </p>
+          <p>Open source · <a href="https://github.com/denny190/hangryhippo" className="text-slate-500 hover:text-slate-300 underline underline-offset-2" target="_blank" rel="noopener noreferrer">MIT License</a></p>
+        </div>
       </div>
+
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     </div>
   );
 }
