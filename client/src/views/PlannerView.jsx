@@ -3,7 +3,7 @@ import {
   DndContext, DragOverlay, pointerWithin,
   PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, LayoutGrid, ListFilter, X, PenLine, Scan, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, ListFilter, X, PenLine, Scan, Search, CalendarDays } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import {
   DAYS, MEAL_TYPES, MEAL_LABELS,
@@ -13,6 +13,7 @@ import {
 import { api, getMacrosForItems } from '../utils/api.js';
 import MealCell from '../components/planner/MealCell.jsx';
 import RecipePanel from '../components/planner/RecipePanel.jsx';
+import CalendarPicker from '../components/common/CalendarPicker.jsx';
 import Modal from '../components/common/Modal.jsx';
 import QuickLogModal from '../components/summary/QuickLogModal.jsx';
 import BarcodeModal from '../components/recipes/BarcodeModal.jsx';
@@ -347,6 +348,7 @@ export default function PlannerView() {
   const { recipes, foods, mealPlan, currentWeek } = state;
 
   const [panelOpen,     setPanelOpen]     = useState(false);
+  const [showCalendar,  setShowCalendar]  = useState(false);
   const [pickerCell,    setPickerCell]    = useState(null);
   const [quickCell,     setQuickCell]     = useState(null);
   const [batchModal,    setBatchModal]    = useState(null);
@@ -436,12 +438,15 @@ export default function PlannerView() {
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-4 py-3 border-b border-border shrink-0">
         <button onClick={() => goWeekNav(-1)} className="btn-ghost p-1.5"><ChevronLeft size={16} /></button>
-        <div className="flex-1 text-center">
+        <button
+          onClick={() => setShowCalendar(true)}
+          className="flex-1 text-center hover:bg-white/5 rounded-lg py-1 transition-colors"
+        >
           <span className="text-sm font-semibold text-slate-200">{currentWeek}</span>
           {currentWeek === todayWeek && (
             <span className="ml-2 badge bg-accent/15 text-accent border border-accent/20 text-[10px]">this week</span>
           )}
-        </div>
+        </button>
         <button onClick={() => goWeekNav(1)} className="btn-ghost p-1.5"><ChevronRight size={16} /></button>
         <button
           onClick={() => setPanelOpen(o => !o)}
@@ -572,6 +577,17 @@ export default function PlannerView() {
           mealType={batchModal.mealType}
           onConfirm={handleBatchFill}
           onClose={() => setBatchModal(null)}
+        />
+      )}
+      {showCalendar && (
+        <CalendarPicker
+          mode="week"
+          selectedDate={weekDates[0]}
+          onSelect={(date) => dispatch({ type: 'SET_WEEK', payload: getISOWeek(date) })}
+          onClose={() => setShowCalendar(false)}
+          targets={state.settings.targets}
+          recipes={recipes}
+          foods={foods}
         />
       )}
     </div>

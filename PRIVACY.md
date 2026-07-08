@@ -22,9 +22,9 @@ Your data is stored in a secure, encrypted cloud database. Each account is fully
 
 ## Your rights
 
-**Export** — download a full copy of your data at any time from the Settings page.
+**Export** - download a full copy of your data at any time from the Settings page.
 
-**Deletion** — to delete your account and all associated data, contact us via [GitHub Issues](https://github.com/denny190/hangryhippo/issues).
+**Deletion** - to delete your account and all associated data, use the option in the settings, which irreversibly deletes all your data or contact us via [GitHub Issues](https://github.com/denny190/hangryhippo/issues).
 
 ---
 

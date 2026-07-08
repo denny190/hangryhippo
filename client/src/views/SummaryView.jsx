@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Plus, NotebookPen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, NotebookPen, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
@@ -12,6 +12,7 @@ import {
 } from '../utils/weekUtils.js';
 import MacroBar from '../components/summary/MacroBar.jsx';
 import QuickLogModal from '../components/summary/QuickLogModal.jsx';
+import CalendarPicker from '../components/common/CalendarPicker.jsx';
 
 function addDays(date, n) {
   const d = new Date(date);
@@ -28,7 +29,8 @@ export default function SummaryView() {
   const [planCache, setPlanCache] = useState({});
   const [note, setNote] = useState('');
   const [noteSaved, setNoteSaved] = useState(true);
-  const [showQuickLog, setShowQuickLog] = useState(false);
+  const [showQuickLog,  setShowQuickLog]  = useState(false);
+  const [showCalendar,  setShowCalendar]  = useState(false);
   const fetchedRef = useRef(new Set([currentWeek]));
 
   const todayStr   = toLocalDateStr(new Date());
@@ -156,9 +158,15 @@ export default function SummaryView() {
           <ChevronLeft size={16} />
         </button>
         <div className="flex-1 text-center">
-          <h2 className={`text-base font-semibold ${isToday ? 'text-slate-100' : 'text-slate-300'}`}>
-            {selDayLabel}
-          </h2>
+          <button
+            onClick={() => setShowCalendar(true)}
+            className="flex items-center justify-center gap-1.5 mx-auto hover:opacity-80 transition-opacity"
+          >
+            <CalendarDays size={13} className="text-slate-500" />
+            <h2 className={`text-base font-semibold ${isToday ? 'text-slate-100' : 'text-slate-300'}`}>
+              {selDayLabel}
+            </h2>
+          </button>
           {!isToday && (
             <button onClick={() => setSelectedDate(new Date())} className="text-[10px] text-accent hover:underline">
               Back to today
@@ -303,6 +311,17 @@ export default function SummaryView() {
 
       {showQuickLog && (
         <QuickLogModal onClose={() => setShowQuickLog(false)} onAdd={handleQuickLog} />
+      )}
+      {showCalendar && (
+        <CalendarPicker
+          mode="day"
+          selectedDate={selectedDate}
+          onSelect={(date) => setSelectedDate(date)}
+          onClose={() => setShowCalendar(false)}
+          targets={targets}
+          recipes={recipes}
+          foods={foods}
+        />
       )}
     </div>
   );
