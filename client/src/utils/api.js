@@ -154,6 +154,19 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
+  // Delete account — removes all user data then signs out (auth record is removed server-side via RLS cascade)
+  deleteAccount: async () => {
+    const userId = await uid();
+    await Promise.all([
+      supabase.from('recipes').delete().eq('user_id', userId),
+      supabase.from('foods').delete().eq('user_id', userId),
+      supabase.from('meal_plans').delete().eq('user_id', userId),
+      supabase.from('notes').delete().eq('user_id', userId),
+      supabase.from('settings').delete().eq('user_id', userId),
+    ]);
+    await supabase.auth.signOut();
+  },
+
   // Import — clears existing data then re-inserts from backup (IDs preserved so recipe→food refs stay intact)
   importDb: async (data) => {
     const userId = await uid();

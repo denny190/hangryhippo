@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, Save, LogOut } from 'lucide-react';
+import { Download, Upload, Save, LogOut, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import { api } from '../utils/api.js';
 import { supabase } from '../lib/supabase.js';
@@ -11,6 +11,8 @@ export default function SettingsView() {
   const [saved, setSaved] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef();
 
   const setTarget = (k, v) => setTargets(t => ({ ...t, [k]: parseFloat(v) || 0 }));
@@ -117,6 +119,40 @@ export default function SettingsView() {
         >
           <LogOut size={14} /> Sign out
         </button>
+
+        <div className="border-t border-border pt-3">
+          {!confirmDelete ? (
+            <button
+              className="btn-ghost w-full justify-center border border-border text-red-400/40 hover:text-red-400 hover:border-red-400/30 text-xs"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={13} /> Delete account and all data
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-red-400 text-center">This will permanently delete all your recipes, foods, meal plans, and notes. This cannot be undone.</p>
+              <div className="flex gap-2">
+                <button
+                  className="btn-ghost flex-1 justify-center text-xs"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="flex-1 justify-center text-xs flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+                  disabled={deleting}
+                  onClick={async () => {
+                    setDeleting(true);
+                    try { await api.deleteAccount(); } catch { setDeleting(false); setConfirmDelete(false); }
+                  }}
+                >
+                  <Trash2 size={13} /> {deleting ? 'Deleting…' : 'Yes, delete everything'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* App info */}

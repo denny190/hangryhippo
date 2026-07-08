@@ -3,7 +3,7 @@ import {
   DndContext, DragOverlay, pointerWithin,
   PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
-import { ChevronLeft, ChevronRight, LayoutGrid, ShoppingCart, ListFilter, X, PenLine, Scan, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, ListFilter, X, PenLine, Scan, Search } from 'lucide-react';
 import { useApp } from '../context/AppContext.jsx';
 import {
   DAYS, MEAL_TYPES, MEAL_LABELS,
@@ -13,7 +13,6 @@ import {
 import { api, getMacrosForItems } from '../utils/api.js';
 import MealCell from '../components/planner/MealCell.jsx';
 import RecipePanel from '../components/planner/RecipePanel.jsx';
-import ShoppingList from '../components/planner/ShoppingList.jsx';
 import Modal from '../components/common/Modal.jsx';
 import QuickLogModal from '../components/summary/QuickLogModal.jsx';
 import BarcodeModal from '../components/recipes/BarcodeModal.jsx';
@@ -348,7 +347,6 @@ export default function PlannerView() {
   const { recipes, foods, mealPlan, currentWeek } = state;
 
   const [panelOpen,     setPanelOpen]     = useState(false);
-  const [showShopping,  setShowShopping]  = useState(false);
   const [pickerCell,    setPickerCell]    = useState(null);
   const [quickCell,     setQuickCell]     = useState(null);
   const [batchModal,    setBatchModal]    = useState(null);
@@ -451,9 +449,6 @@ export default function PlannerView() {
           title="Recipe panel"
         >
           <LayoutGrid size={16} />
-        </button>
-        <button onClick={() => setShowShopping(true)} className="btn-ghost p-1.5" title="Shopping list">
-          <ShoppingCart size={16} />
         </button>
         <button
           onClick={() => saveMealPlan({})}
@@ -577,13 +572,6 @@ export default function PlannerView() {
           mealType={batchModal.mealType}
           onConfirm={handleBatchFill}
           onClose={() => setBatchModal(null)}
-        />
-      )}
-      {showShopping && (
-        <ShoppingList
-          onClose={() => setShowShopping(false)}
-          mealPlan={mealPlan}
-          recipes={recipes}
         />
       )}
     </div>
